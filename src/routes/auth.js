@@ -5,7 +5,7 @@ const { z } = require("zod");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
-
+const prisma = new PrismaClient();
 const CLIENT_ID =
   "508689776836-1nsaglsj080gi5gfkafaap2k9e69g5ne.apps.googleusercontent.com";
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -241,6 +241,7 @@ router.get("/admins", authenticateAdmin, async (req, res) => {
   }
 });
 
+
 router.post("/google", async (req, res) => {
   const { credential } = req.body;
 
@@ -251,9 +252,36 @@ router.post("/google", async (req, res) => {
     });
 
     const payload = ticket.getPayload();
-    const { email, name, picture, sub } = payload;
-    const user = { email, name, picture, googleId: sub };
-    const token = jwt.sign(user, JWT_SECRET, { expiresIn: "24h" });
+    const { email, picture, sub } = payload;
+
+    let user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    const bcrypt = require("bcrypt");
+    const saltRounds = 10;
+
+    if (!user) {
+      const name = email.split("@")[0];
+      const hashedPassword = await bcrypt.hash("google-auth", saltRounds);
+
+      user = await prisma.user.create({
+        data: {
+          email,
+          name,
+          password: hashedPassword,
+        },
+      });
+    }
+
+    const tokenPayload = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "24h" });
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -261,7 +289,7 @@ router.post("/google", async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000,
       sameSite: "Lax",
     });
-    console.log(token);
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);

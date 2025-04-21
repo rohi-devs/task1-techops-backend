@@ -25,16 +25,20 @@ const updateComplaintSchema = z.object({
 });
 
 const authenticateAdmin = async (req, res, next) => {
+  console.log("req",req.headers);
   try {
     const token = req.headers.authorization?.split(' ')[1];
+    console.log("token",token);
     if (!token) {
       return res.status(401).json({ message: 'No token provided' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("decoded",decoded);
     const admin = await prisma.user.findUnique({
-      where: { id: decoded.userId }
+      where: { id: decoded.id }
     });
+    console.log(admin);
 
     if (!admin || (admin.role !== 'MODERATOR' && admin.role !== 'SUPER_ADMIN')) {
       return res.status(403).json({ message: 'Not authorized' });
