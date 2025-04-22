@@ -19,6 +19,11 @@ app.use(
     credentials: true,
   })
 );
+app.get("/", (req, res) => {
+  console.log("Reached CTF complaint handler backend");
+  res.send("Complaint handler route accessed");
+});
+
 app.use(express.json());
 app.use(morgan("dev"));
 app.use(express.json());
