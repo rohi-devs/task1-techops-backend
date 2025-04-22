@@ -4,7 +4,7 @@ const multer = require("multer");
 const { BlobServiceClient } = require("@azure/storage-blob");
 const { PrismaClient } = require("@prisma/client");
 const { z } = require("zod");
-const jwt=require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
 const prisma = new PrismaClient();
 
 const blobServiceClient = BlobServiceClient.fromConnectionString(
@@ -56,6 +56,41 @@ const authenticateToken = async (req, res, next) => {
     res.status(401).json({ message: "Invalid token" });
   }
 };
+router.get("/summary", authenticateToken, async (req, res) => {
+  console.log("summary admin");
+  try {
+    const complaints = await prisma.complaint.findMany({
+      select: {
+        title: true,
+        status: true,
+      },
+    });
+
+    const groupedComplaints = complaints.reduce((acc, complaint) => {
+      const status = complaint.status;
+      if (!acc[status]) {
+        acc[status] = { titles: [], count: 0 };
+      }
+      acc[status].titles.push(complaint.title);
+      acc[status].count += 1;
+      return acc;
+    }, {});
+
+    const summary = {
+      total: complaints.length,
+      pending: groupedComplaints.PENDING?.count || 0,
+      inProgress: groupedComplaints.IN_PROGRESS?.count || 0,
+      resolved: groupedComplaints.RESOLVED?.count || 0,
+    };
+
+    res.json({
+      summary,
+      groupedComplaints,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching summary" });
+  }
+});
 
 router.post(
   "/",
@@ -79,7 +114,7 @@ router.post(
           description,
           category,
           imageUrl,
-          userId: req.user?.id || "1ecc0db9-2577-40aa-b705-31fd8926b9be",
+          userId: req.user?.id,
         },
       });
 
@@ -137,42 +172,100 @@ router.get("/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Error fetching complaint" });
   }
 });
+router.get("/:id/messages", authenticateToken, async (req, res) => {
+  try {
+    const messages = await prisma.message.findMany({
+      where: { complaintId: req.params.id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
 
+    const formatted = messages.map((msg) => ({
+      id: msg.id,
+      content: msg.content,
+      createdAt: msg.createdAt,
+      senderName: msg.user?.name || "Admin",
+      senderRole: msg.user?.role || "ADMIN",
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch messages" });
+  }
+});
+
+
+//   try {
+//     const { content } = z
+//       .object({ content: z.string().min(1) })
+//       .parse(req.body);
+
+//     const complaint = await prisma.complaint.findUnique({
+//       where: { id: req.params.id },
+//     });
+
+//     if (!complaint) {
+//       return res.status(404).json({ message: "Complaint not found" });
+//     }
+
+//     if (complaint.userId !== req.user.id) {
+//       return res
+//         .status(403)
+//         .json({ message: "Not authorized to add messages to this complaint" });
+//     }
+
+//     const message = await prisma.message.create({
+//       data: {
+//         content,
+//         complaintId: req.params.id,
+//       },
+//     });
+
+//     res.status(201).json(message);
+//   } catch (error) {
+//     if (error instanceof z.ZodError) {
+//       return res
+//         .status(400)
+//         .json({ message: "Validation error", errors: error.errors });
+//     }
+//     res.status(500).json({ message: "Error adding message" });
+//   }
+// });
 router.post("/:id/messages", authenticateToken, async (req, res) => {
   try {
-    const { content } = z
-      .object({ content: z.string().min(1) })
-      .parse(req.body);
+    const { content } = req.body;
+    const complaintId = req.params.id;
+
+    const userId = req.user.id;
 
     const complaint = await prisma.complaint.findUnique({
-      where: { id: req.params.id },
+      where: { id: complaintId },
     });
 
     if (!complaint) {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
-    if (complaint.userId !== req.user.id) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to add messages to this complaint" });
-    }
-
     const message = await prisma.message.create({
       data: {
         content,
-        complaintId: req.params.id,
+        complaintId,
+        userId,
       },
     });
 
     res.status(201).json(message);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res
-        .status(400)
-        .json({ message: "Validation error", errors: error.errors });
-    }
-    res.status(500).json({ message: "Error adding message" });
+    console.error("Error posting message:", error);
+    res.status(500).json({ message: "Error posting message" });
   }
 });
 

@@ -8,36 +8,39 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(uuid())
-  email         String     @unique
-  name          String
-  password      String
-  role          Role       @default(USER)
-  complaints    Complaint[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id         String      @id @default(uuid())
+  email      String      @unique
+  name       String
+  password   String
+  role       Role        @default(USER)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  complaints Complaint[]
+  Message    Message[]
 }
 
 model Complaint {
-  id          String     @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
   description String
   category    String
-  status      Status     @default(PENDING)
+  status      Status    @default(PENDING)
   imageUrl    String?
   userId      String
-  user        User       @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
   messages    Message[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
 }
 
 model Message {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   content     String
   complaintId String
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
   complaint   Complaint @relation(fields: [complaintId], references: [id])
-  createdAt   DateTime @default(now())
 }
 
 enum Role {
@@ -50,4 +53,4 @@ enum Status {
   PENDING
   IN_PROGRESS
   RESOLVED
-} 
+}

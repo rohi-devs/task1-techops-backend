@@ -164,13 +164,14 @@ router.get("/complaints", authenticateAdmin, async (req, res) => {
 router.put("/complaints/:id", authenticateAdmin, async (req, res) => {
   try {
     const { status, response } = updateComplaintSchema.parse(req.body);
-
+    console.log(status,response)
     const complaint = await prisma.complaint.update({
       where: { id: req.params.id },
       data: { status },
     });
 
     if (response) {
+      console.log("response created")
       await prisma.message.create({
         data: {
           content: response,
