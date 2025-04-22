@@ -213,7 +213,7 @@ router.post("/login", async (req, res) => {
       sameSite: "Lax",
     });
 
-    res.json({ message: "Login successful" });
+    res.json({ message: "Login done successfully" });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res
