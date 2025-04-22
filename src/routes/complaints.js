@@ -27,6 +27,12 @@ const complaintSchema = z.object({
   category: z.string(),
 });
 
+const messageSchema = z.object({
+  content: z.string()
+    .min(1, "Message content cannot be empty")
+    .max(1000, "Message content too long")
+});
+
 const authenticateToken = async (req, res, next) => {
   console.log("req", req.headers);
   try {
@@ -92,18 +98,59 @@ router.get("/summary", authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/complaints:
+ *   post:
+ *     summary: Create a new complaint
+ *     tags: [Complaints]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *               - category
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 100
+ *               description:
+ *                 type: string
+ *                 minLength: 10
+ *               category:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Complaint created successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
+
 router.post(
   "/",
   authenticateToken,
   upload.single("image"),
   async (req, res) => {
+    let blockBlobClient = null;
     try {
       const { title, description, category } = complaintSchema.parse(req.body);
       let imageUrl = null;
 
       if (req.file) {
         const blobName = `${Date.now()}-${req.file.originalname}`;
-        const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+        blockBlobClient = containerClient.getBlockBlobClient(blobName);
         await blockBlobClient.uploadData(req.file.buffer);
         imageUrl = blockBlobClient.url;
       }
@@ -120,15 +167,59 @@ router.post(
 
       res.status(201).json(complaint);
     } catch (error) {
+      // Clean up uploaded blob if database operation fails
+      if (blockBlobClient) {
+        try {
+          await blockBlobClient.delete();
+        } catch (deleteError) {
+          console.error("Error deleting blob:", deleteError);
+        }
+      }
+
       if (error instanceof z.ZodError) {
         return res
           .status(400)
           .json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Error creating complaint" });
+
+      console.error("Error creating complaint:", error);
+      res.status(500).json({ 
+        message: "Error creating complaint",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 );
+
+/**
+ * @swagger
+ * /api/complaints:
+ *   get:
+ *     summary: Get all complaints for the authenticated user
+ *     tags: [Complaints]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of complaints
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   title:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   status:
+ *                     type: string
+ *                   messages:
+ *                     type: array
+ */
 
 router.get("/", authenticateToken, async (req, res) => {
   try {
@@ -147,6 +238,29 @@ router.get("/", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Error fetching complaints" });
   }
 });
+
+/**
+ * @swagger
+ * /api/complaints/{id}:
+ *   get:
+ *     summary: Get a specific complaint
+ *     tags: [Complaints]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Complaint details
+ *       403:
+ *         description: Not authorized to view this complaint
+ *       404:
+ *         description: Complaint not found
+ */
 
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
@@ -172,6 +286,44 @@ router.get("/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Error fetching complaint" });
   }
 });
+
+/**
+ * @swagger
+ * /api/complaints/{id}/messages:
+ *   get:
+ *     summary: Get messages for a complaint
+ *     tags: [Complaints]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of messages
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   content:
+ *                     type: string
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *                   senderName:
+ *                     type: string
+ *                   senderRole:
+ *                     type: string
+ */
+
 router.get("/:id/messages", authenticateToken, async (req, res) => {
   try {
     const messages = await prisma.message.findMany({
@@ -202,50 +354,46 @@ router.get("/:id/messages", authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/complaints/{id}/messages:
+ *   post:
+ *     summary: Add a message to a complaint
+ *     tags: [Complaints]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Message added successfully
+ *       404:
+ *         description: Complaint not found
+ */
 
-//   try {
-//     const { content } = z
-//       .object({ content: z.string().min(1) })
-//       .parse(req.body);
-
-//     const complaint = await prisma.complaint.findUnique({
-//       where: { id: req.params.id },
-//     });
-
-//     if (!complaint) {
-//       return res.status(404).json({ message: "Complaint not found" });
-//     }
-
-//     if (complaint.userId !== req.user.id) {
-//       return res
-//         .status(403)
-//         .json({ message: "Not authorized to add messages to this complaint" });
-//     }
-
-//     const message = await prisma.message.create({
-//       data: {
-//         content,
-//         complaintId: req.params.id,
-//       },
-//     });
-
-//     res.status(201).json(message);
-//   } catch (error) {
-//     if (error instanceof z.ZodError) {
-//       return res
-//         .status(400)
-//         .json({ message: "Validation error", errors: error.errors });
-//     }
-//     res.status(500).json({ message: "Error adding message" });
-//   }
-// });
 router.post("/:id/messages", authenticateToken, async (req, res) => {
   try {
-    const { content } = req.body;
-    const complaintId = req.params.id;
 
+    const { content } = messageSchema.parse(req.body);
+    const complaintId = req.params.id;
     const userId = req.user.id;
 
+ 
     const complaint = await prisma.complaint.findUnique({
       where: { id: complaintId },
     });
@@ -254,18 +402,55 @@ router.post("/:id/messages", authenticateToken, async (req, res) => {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
+
+    if (complaint.userId !== userId) {
+      return res.status(403).json({ 
+        message: "Not authorized to add messages to this complaint" 
+      });
+    }
+
+
     const message = await prisma.message.create({
       data: {
         content,
         complaintId,
         userId,
       },
+      include: {
+        user: {
+          select: {
+            name: true,
+            role: true
+          }
+        }
+      }
     });
 
-    res.status(201).json(message);
+
+    res.status(201).json({
+      id: message.id,
+      content: message.content,
+      createdAt: message.createdAt,
+      senderName: message.user.name,
+      senderRole: message.user.role
+    });
+
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        message: "Validation error",
+        errors: error.errors.map(e => ({
+          field: e.path.join('.'),
+          message: e.message
+        }))
+      });
+    }
+
     console.error("Error posting message:", error);
-    res.status(500).json({ message: "Error posting message" });
+    res.status(500).json({ 
+      message: "Error posting message",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

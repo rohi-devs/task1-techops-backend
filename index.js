@@ -3,6 +3,8 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const { PrismaClient } = require("@prisma/client");
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 
 const cookieParser = require("cookie-parser");
 const prisma = new PrismaClient();
@@ -15,6 +17,31 @@ app.use(
     credentials: true,
   })
 );
+
+const options = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Admin API Documentation',
+      version: '1.0.0',
+      description: 'API documentation for the admin routes',
+    },
+    components: {
+      securitySchemes: {
+        BearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+  },
+  apis: ['./src/routes/*.js'], // path to your API routes
+};
+
+const specs = swaggerJsdoc(options);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
 app.use(express.json());
 app.use(morgan("dev"));
 app.use(express.json());

@@ -54,6 +54,52 @@ const authenticateAdmin = async (req, res, next) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/admin/login:
+ *   post:
+ *     summary: Login for admin users
+ *     tags: [Admin]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id: 
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       401:
+ *         description: Invalid credentials
+ */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = adminLoginSchema.parse(req.body);
@@ -99,6 +145,44 @@ router.post("/login", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/admin/create:
+ *   post:
+ *     summary: Create a new admin user
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - name
+ *               - password
+ *               - role
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               role:
+ *                 type: string
+ *                 enum: [MODERATOR, SUPER_ADMIN]
+ *     responses:
+ *       201:
+ *         description: Admin created successfully
+ *       403:
+ *         description: Only Super Admin can create new admins
+ */
 router.post("/create", authenticateAdmin, async (req, res) => {
   try {
     if (req.admin.role !== "SUPER_ADMIN") {
@@ -139,6 +223,31 @@ router.post("/create", authenticateAdmin, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/admin/complaints:
+ *   get:
+ *     summary: Get all complaints
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all complaints
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   user:
+ *                     type: object
+ *                   messages:
+ *                     type: array
+ */
 router.get("/complaints", authenticateAdmin, async (req, res) => {
   try {
     const complaints = await prisma.complaint.findMany({
@@ -163,6 +272,60 @@ router.get("/complaints", authenticateAdmin, async (req, res) => {
   }
 });
 
+/**
+ * @swaggerconst options = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Admin API Documentation',
+      version: '1.0.0',
+      description: 'API documentation for the admin routes',
+    },
+    components: {
+      securitySchemes: {
+        BearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+  },
+  apis: ['./src/routes/*.js'], // path to your API routes
+};
+
+const specs = swaggerJsdoc(options);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+ * /api/admin/complaints/{id}:
+ *   put:
+ *     summary: Update complaint status and add response
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, IN_PROGRESS, RESOLVED]
+ *               response:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Complaint updated successfully
+ */
 router.put("/complaints/:id", authenticateAdmin, async (req, res) => {
   try {
     const { status, response } = updateComplaintSchema.parse(req.body);
@@ -194,6 +357,29 @@ router.put("/complaints/:id", authenticateAdmin, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/admin/statistics:
+ *   get:
+ *     summary: Get complaints statistics
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Complaints statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: number
+ *                 byStatus:
+ *                   type: array
+ *                 byCategory:
+ *                   type: array
+ */
 router.get("/statistics", authenticateAdmin, async (req, res) => {
   try {
     const totalComplaints = await prisma.complaint.count();
@@ -215,6 +401,28 @@ router.get("/statistics", authenticateAdmin, async (req, res) => {
     res.status(500).json({ message: "Error fetching statistics" });
   }
 });
+
+/**
+ * @swagger
+ * /api/admin/summary:
+ *   get:
+ *     summary: Get complaints summary
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Complaints summary
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 summary:
+ *                   type: object
+ *                 groupedComplaints:
+ *                   type: object
+ */
 router.get("/summary", authenticateAdmin, async (req, res) => {
   console.log("summary admin");
   try {
@@ -250,6 +458,39 @@ router.get("/summary", authenticateAdmin, async (req, res) => {
     res.status(500).json({ message: "Error fetching summary" });
   }
 });
+
+/**
+ * @swagger
+ * /api/admin/admins:
+ *   get:
+ *     summary: Get all admin users
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all admin users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *       403:
+ *         description: Only Super Admin can view all admins
+ */
 router.get("/admins", authenticateAdmin, async (req, res) => {
   try {
     if (req.admin.role !== "SUPER_ADMIN") {
