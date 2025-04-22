@@ -27,6 +27,246 @@ const updateComplaintSchema = z.object({
   response: z.string().optional(),
 });
 
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication endpoints
+ */
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Login as admin
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *       401:
+ *         description: Invalid credentials
+ */
+
+/**
+ * @swagger
+ * /api/auth/create:
+ *   post:
+ *     summary: Create a new admin user
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - name
+ *               - password
+ *               - role
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               role:
+ *                 type: string
+ *                 enum: [MODERATOR, SUPER_ADMIN]
+ *     responses:
+ *       201:
+ *         description: Admin created successfully
+ *       403:
+ *         description: Only Super Admin can create new admins
+ */
+
+/**
+ * @swagger
+ * /api/auth/complaints:
+ *   get:
+ *     summary: Get all complaints
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all complaints
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   user:
+ *                     type: object
+ *                   messages:
+ *                     type: array
+ */
+
+/**
+ * @swagger
+ * /api/auth/complaints/{id}:
+ *   put:
+ *     summary: Update complaint status
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, IN_PROGRESS, RESOLVED]
+ *               response:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Complaint updated successfully
+ */
+
+/**
+ * @swagger
+ * /api/auth/statistics:
+ *   get:
+ *     summary: Get complaint statistics
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Complaint statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: number
+ *                 byStatus:
+ *                   type: array
+ *                 byCategory:
+ *                   type: array
+ */
+
+/**
+ * @swagger
+ * /api/auth/admins:
+ *   get:
+ *     summary: Get all admin users
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all admin users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *       403:
+ *         description: Only Super Admin can view all admins
+ */
+
+/**
+ * @swagger
+ * /api/auth/google:
+ *   post:
+ *     summary: Authenticate with Google
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - credential
+ *             properties:
+ *               credential:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Authentication successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *       401:
+ *         description: Invalid token
+ */
+
 const authenticateAdmin = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
