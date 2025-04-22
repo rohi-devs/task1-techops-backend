@@ -13,10 +13,15 @@ const app = express();
 // app.use(cors());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://task1-techops-frontend.vercel.app",
+      "https://task1-techops-frontend-nxx6ee0uy-vishs-projects-b03efeba.vercel.app",
+    ],
     credentials: true,
   })
 );
+
 
 const options = {
   definition: {
@@ -41,6 +46,12 @@ const options = {
 
 const specs = swaggerJsdoc(options);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
+app.get("/", (req, res) => {
+  console.log("Reached CTF complaint handler backend");
+  res.send("Complaint handler route accessed");
+});
+
 
 app.use(express.json());
 app.use(morgan("dev"));

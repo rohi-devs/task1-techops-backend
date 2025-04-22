@@ -384,6 +384,7 @@ router.get("/summary", authenticateToken, async (req, res) => {
  *         description: Logout successful
  */
 
+
 router.get("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
