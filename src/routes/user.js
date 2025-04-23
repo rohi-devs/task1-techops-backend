@@ -183,7 +183,7 @@ router.post("/login", async (req, res) => {
       httpOnly: true,
       secure: true,
       maxAge: 24 * 60 * 60 * 1000,
-      sameSite: "Lax",
+      sameSite: "None",
     });
 
     res.json({ message: "Login successful" });
@@ -334,7 +334,7 @@ router.get("/summary", authenticateToken, async (req, res) => {
       where: { userId: req.user.id },
       _count: true,
     });
-    console.log(complaints)
+    console.log(complaints);
     const summary = {
       total: complaints.reduce((acc, curr) => acc + curr._count, 0),
       pending: complaints.find((c) => c.status === "PENDING")?._count || 0,
@@ -342,7 +342,7 @@ router.get("/summary", authenticateToken, async (req, res) => {
         complaints.find((c) => c.status === "IN_PROGRESS")?._count || 0,
       resolved: complaints.find((c) => c.status === "RESOLVED")?._count || 0,
     };
-    console.log(summary)
+    console.log(summary);
     res.json(summary);
   } catch (error) {
     res.status(500).json({ message: "Error fetching summary" });
@@ -384,11 +384,10 @@ router.get("/summary", authenticateToken, async (req, res) => {
  *         description: Logout successful
  */
 
-
 router.get("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    sameSite: "Lax",
+    sameSite: "None",
     secure: true,
   });
   res.json({ success: true });
@@ -421,7 +420,7 @@ router.get("/me", (req, res) => {
   try {
     const user = jwt.verify(token, JWT_SECRET);
     //console.log("user",user);
-    res.json({ user,token });
+    res.json({ user, token });
   } catch (Error) {
     console.log(Error);
     res.clearCookie("token");
