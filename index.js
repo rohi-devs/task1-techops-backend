@@ -17,6 +17,8 @@ const allowedOrigins = [
   "https://task1-techops-frontend-git-main-vishs-projects-b03efeba.vercel.app",
   "https://task1-techops-frontend-vishs-projects-b03efeba.vercel.app",
   "https://fend.rohidevs.engineer",
+  "https://bend.rohidevs.engineer/",
+  "http://localhost:3000",
 ];
 
 app.use(
@@ -36,9 +38,9 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "Admin API Documentation",
+      title: "Complaint API Documentation",
       version: "1.0.0",
-      description: "API documentation for the admin routes",
+      description: "API documentation for the Complaint Handler application",
     },
     components: {
       securitySchemes: {
@@ -50,7 +52,7 @@ const options = {
       },
     },
   },
-  apis: ["./src/routes/*.js"], // path to your API routes
+  apis: ["./src/routes/*.js"], 
 };
 
 const specs = swaggerJsdoc(options);
@@ -58,7 +60,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
 app.get("/", (req, res) => {
   console.log("Reached CTF complaint handler backend");
-  res.send("Complaint handler route accessed");
+  res.send("Haa haa! Gotcha! You have reached the CTF complaint handler backend!");
 });
 
 app.use(express.json());
