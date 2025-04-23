@@ -14,7 +14,7 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "https://task1-techops-frontend.vercel.app",
-  "https://task1-techops-frontend-nxx6ee0uy-vishs-projects-b03efeba.vercel.app",
+  "https://task1-techops-frontend-git-main-vishs-projects-b03efeba.vercel.app",
   "https://task1-techops-frontend-vishs-projects-b03efeba.vercel.app",
 ];
 
