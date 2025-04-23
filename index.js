@@ -16,6 +16,7 @@ const allowedOrigins = [
   "https://task1-techops-frontend.vercel.app",
   "https://task1-techops-frontend-git-main-vishs-projects-b03efeba.vercel.app",
   "https://task1-techops-frontend-vishs-projects-b03efeba.vercel.app",
+  "https://fend.rohidevs.engineer",
 ];
 
 app.use(
